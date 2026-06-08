@@ -518,12 +518,14 @@ function PersonalStep({
   data,
   setData,
   nameError,
+  cpfError,
   formatCpf,
   onSubmit,
 }: {
   data: PersonalData
   setData: React.Dispatch<React.SetStateAction<PersonalData>>
   nameError: boolean
+  cpfError: boolean
   formatCpf: (v: string) => string
   onSubmit: () => void
 }) {
@@ -578,8 +580,9 @@ function PersonalStep({
               value={data.cpf}
               onChange={(e) => setData((d) => ({ ...d, cpf: formatCpf(e.target.value) }))}
               placeholder="123.456.789-12"
-              className={inputClass}
+              className={`${inputClass} ${cpfError ? "ring-2 ring-red-500" : ""}`}
             />
+            {cpfError && <span className="text-xs text-red-600">CPF inválido</span>}
           </Field>
         </div>
       </div>

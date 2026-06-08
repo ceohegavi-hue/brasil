@@ -79,6 +79,7 @@ export function CheckoutFlow({
   const [copied, setCopied] = useState(false)
   const [timeLeft, setTimeLeft] = useState(7 * 60 + 20)
   const [nameError, setNameError] = useState(false)
+  const [cpfError, setCpfError] = useState(false)
   const [pixCode, setPixCode] = useState("")
   const [pixId, setPixId] = useState("")
   const [pixLoading, setPixLoading] = useState(false)
@@ -165,16 +166,41 @@ export function CheckoutFlow({
       .replace(/(\d{3})(\d{1,2})$/, "$1-$2")
   }
 
+  function isValidCpf(value: string) {
+    const cpf = value.replace(/\D/g, "")
+    if (cpf.length !== 11) return false
+    if (/^(\d)\1{10}$/.test(cpf)) return false
+    let sum = 0
+    for (let i = 0; i < 9; i++) sum += Number(cpf[i]) * (10 - i)
+    let check = (sum * 10) % 11
+    if (check === 10) check = 0
+    if (check !== Number(cpf[9])) return false
+    sum = 0
+    for (let i = 0; i < 10; i++) sum += Number(cpf[i]) * (11 - i)
+    check = (sum * 10) % 11
+    if (check === 10) check = 0
+    return check === Number(cpf[10])
+  }
+
   function goToPersonal() {
     setStep("personal")
   }
 
   function submitPersonal() {
-    if (personal.name.trim().split(" ").length < 2) {
+    let hasError = false
+    if (personal.name.trim().split(" ").filter(Boolean).length < 2) {
       setNameError(true)
-      return
+      hasError = true
+    } else {
+      setNameError(false)
     }
-    setNameError(false)
+    if (!isValidCpf(personal.cpf)) {
+      setCpfError(true)
+      hasError = true
+    } else {
+      setCpfError(false)
+    }
+    if (hasError) return
     setStep("address")
   }
 
@@ -303,6 +329,7 @@ export function CheckoutFlow({
               data={personal}
               setData={setPersonal}
               nameError={nameError}
+              cpfError={cpfError}
               formatCpf={formatCpf}
               onSubmit={submitPersonal}
             />

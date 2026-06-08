@@ -12,6 +12,8 @@ type ShirtSelection = {
   model: string | null
   color: string | null
   personalize: "Sim" | "Não" | null
+  customName: string
+  customNumber: string
 }
 
 const emptySelection: ShirtSelection = {
@@ -19,6 +21,8 @@ const emptySelection: ShirtSelection = {
   model: null,
   color: null,
   personalize: null,
+  customName: "",
+  customNumber: "",
 }
 
 function OptionPill({
@@ -123,6 +127,40 @@ function ShirtCard({
             />
           ))}
         </div>
+
+        {selection.personalize === "Sim" && (
+          <div className="mt-4 flex flex-col gap-3">
+            <div>
+              <label className="text-sm font-bold text-foreground">Nome na camisa</label>
+              <input
+                type="text"
+                value={selection.customName}
+                onChange={(e) => onChange({ ...selection, customName: e.target.value.toUpperCase().slice(0, 12) })}
+                placeholder="Ex: NEYMAR"
+                maxLength={12}
+                className="mt-2 w-full rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium uppercase text-foreground outline-none focus:border-brand-blue"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-bold text-foreground">Número (0 a 99)</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={selection.customNumber}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, "").slice(0, 2)
+                  const num = Number(digits)
+                  if (digits === "" || num <= 99) {
+                    onChange({ ...selection, customNumber: digits })
+                  }
+                }}
+                placeholder="Ex: 10"
+                maxLength={2}
+                className="mt-2 w-full rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground outline-none focus:border-brand-blue"
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

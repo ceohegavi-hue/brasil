@@ -1,6 +1,11 @@
+"use client"
+
 import { ChevronLeft, Share2, ShoppingCart } from "lucide-react"
+import { useCart } from "@/components/cart-provider"
 
 export function SiteHeader() {
+  const { openCart } = useCart()
+
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between bg-card px-3 py-3 shadow-sm">
       <button aria-label="Voltar" className="rounded-full p-1">
@@ -10,7 +15,7 @@ export function SiteHeader() {
         <button aria-label="Compartilhar">
           <Share2 className="h-5 w-5" />
         </button>
-        <button aria-label="Carrinho" className="relative">
+        <button aria-label="Carrinho" className="relative" onClick={openCart}>
           <ShoppingCart className="h-5 w-5" />
           <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
             1

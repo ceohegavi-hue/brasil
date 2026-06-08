@@ -39,6 +39,8 @@ type AddressData = {
   state: string
   country: string
   freteId: string | null
+  otherRecipient: boolean
+  recipientName: string
 }
 
 const PIX_CODE =
@@ -73,6 +75,8 @@ export function CheckoutFlow({
     state: "",
     country: "Brasil",
     freteId: null,
+    otherRecipient: false,
+    recipientName: "",
   })
   const [cepLoading, setCepLoading] = useState(false)
   const [copied, setCopied] = useState(false)

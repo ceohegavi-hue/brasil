@@ -43,9 +43,6 @@ type AddressData = {
   recipientName: string
 }
 
-const PIX_CODE =
-  "00020101021126950014br.gov.bcb.pix2573pix.example.com/qr/v2/cobv/89a7b6c5d4e3f2g1h0i9j8k7l6m5n4o5204000053039865802BR5925CAMISA BRASIL STORE6009SAO PAULO62070503***6304A1B2"
-
 export function CheckoutFlow({
   open,
   onClose,
@@ -82,6 +79,11 @@ export function CheckoutFlow({
   const [copied, setCopied] = useState(false)
   const [timeLeft, setTimeLeft] = useState(7 * 60 + 20)
   const [nameError, setNameError] = useState(false)
+  const [pixCode, setPixCode] = useState("")
+  const [pixId, setPixId] = useState("")
+  const [pixLoading, setPixLoading] = useState(false)
+  const [pixError, setPixError] = useState("")
+  const [paid, setPaid] = useState(false)
 
   useEffect(() => {
     if (open) {
@@ -101,6 +103,24 @@ export function CheckoutFlow({
     const t = setInterval(() => setTimeLeft((s) => (s > 0 ? s - 1 : 0)), 1000)
     return () => clearInterval(t)
   }, [step])
+
+  // Poll payment status on PIX step
+  useEffect(() => {
+    if (step !== "pix" || !pixId || paid) return
+    const t = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/pix/${pixId}`, { cache: "no-store" })
+        const data = await res.json()
+        if (data.status === "PAID") {
+          setPaid(true)
+          clearInterval(t)
+        }
+      } catch {
+        // tenta novamente no próximo ciclo
+      }
+    }, 5000)
+    return () => clearInterval(t)
+  }, [step, pixId, paid])
 
   if (!open) return null
 
@@ -169,10 +189,57 @@ export function CheckoutFlow({
   }
 
   function copyPix() {
-    navigator.clipboard?.writeText(PIX_CODE).then(() => {
+    if (!pixCode) return
+    navigator.clipboard?.writeText(pixCode).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     })
+  }
+
+  async function generatePix() {
+    setPixLoading(true)
+    setPixError("")
+    try {
+      const res = await fetch("/api/pix", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: total,
+          delivery: {
+            fee: freteValue,
+            state: address.state,
+            city: address.city,
+            district: address.district,
+            street: address.street,
+            number: address.sn ? "S/N" : address.number,
+            complement: address.complement,
+            zipCode: address.cep,
+          },
+          description: `Camisa Brasil x${qty}`,
+          payer: {
+            name: personal.name,
+            email: personal.noEmail ? undefined : personal.email,
+            phone: personal.phone,
+            cpf: personal.cpf,
+          },
+          items: [{ name: "Camisa Brasil", quantity: qty, price: UNIT_PRICE }],
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setPixError(data?.error || "Não foi possível gerar o Pix. Tente novamente.")
+        return
+      }
+      setPixCode(data.copypaste || "")
+      setPixId(data.id || "")
+      setPaid(data.status === "PAID")
+      setTimeLeft(7 * 60 + 20)
+      setStep("pix")
+    } catch {
+      setPixError("Erro de conexão. Tente novamente.")
+    } finally {
+      setPixLoading(false)
+    }
   }
 
   const showBack = step !== "summary"
@@ -253,7 +320,15 @@ export function CheckoutFlow({
           )}
 
           {step === "pix" && (
-            <PixStep total={total} timeLeft={timeLeft} mm={mm} copied={copied} onCopy={copyPix} />
+            <PixStep
+              total={total}
+              timeLeft={timeLeft}
+              mm={mm}
+              copied={copied}
+              onCopy={copyPix}
+              pixCode={pixCode}
+              paid={paid}
+            />
           )}
         </div>
 
@@ -266,11 +341,15 @@ export function CheckoutFlow({
               </span>
               <span className="text-lg font-extrabold text-red-600">{brl(total)}</span>
             </div>
+            {step === "review" && pixError && (
+              <p className="mb-2 text-center text-xs font-medium text-red-600">{pixError}</p>
+            )}
             <button
-              onClick={() => (step === "summary" ? goToPersonal() : setStep("pix"))}
-              className="w-full rounded-full bg-red-600 py-3.5 text-base font-bold text-white shadow-md"
+              onClick={() => (step === "summary" ? goToPersonal() : generatePix())}
+              disabled={step === "review" && pixLoading}
+              className="w-full rounded-full bg-red-600 py-3.5 text-base font-bold text-white shadow-md disabled:opacity-60"
             >
-              {step === "summary" ? "Comprar" : "Gerar Pix"}
+              {step === "summary" ? "Comprar" : pixLoading ? "Gerando Pix..." : "Gerar Pix"}
             </button>
           </div>
         )}
@@ -661,13 +740,31 @@ function PixStep({
   mm,
   copied,
   onCopy,
+  pixCode,
+  paid,
 }: {
   total: number
   timeLeft: number
   mm: (s: number) => string
   copied: boolean
   onCopy: () => void
+  pixCode: string
+  paid: boolean
 }) {
+  if (paid) {
+    return (
+      <div className="flex flex-col items-center px-5 py-10 text-center">
+        <span className="flex h-16 w-16 items-center justify-center rounded-full bg-green-600 text-white">
+          <Check className="h-8 w-8" />
+        </span>
+        <h3 className="mt-4 text-2xl font-extrabold text-foreground">Pagamento confirmado!</h3>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Recebemos seu pagamento de {brl(total)}. Seu pedido já está sendo preparado.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="px-5 py-6">
       <div className="flex items-start justify-between">
@@ -692,7 +789,7 @@ function PixStep({
         </span>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
-        Prazo <span className="font-semibold text-foreground">02:53, 08 de jun 2026</span>
+        Após o pagamento, a confirmação é <span className="font-semibold text-foreground">automática</span>.
       </p>
 
       <div className="mt-5 rounded-2xl bg-card p-4 shadow-lg">
@@ -700,10 +797,11 @@ function PixStep({
           <PixGlyph />
           <span className="text-sm font-bold text-foreground">PIX</span>
         </div>
-        <p className="mt-3 truncate text-lg font-bold text-foreground">{PIX_CODE}</p>
+        <p className="mt-3 truncate text-lg font-bold text-foreground">{pixCode || "Gerando código..."}</p>
         <button
           onClick={onCopy}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-red-600 py-3 text-sm font-bold text-white"
+          disabled={!pixCode}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-red-600 py-3 text-sm font-bold text-white disabled:opacity-60"
         >
           {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
           {copied ? "Copiado!" : "Copiar"}

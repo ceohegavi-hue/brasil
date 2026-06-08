@@ -9,6 +9,7 @@ const UNIT_PRICE = 89.75
 const OLD_PRICE = 432.87
 
 const fretes = [
+  { id: "gratis", label: "Frete Grátis", desc: "até 8 dias úteis", price: 0 },
   { id: "sedex", label: "Frete SEDEX", desc: "até 5 dias úteis", price: 11.75 },
   { id: "full", label: "Frete FULL", desc: "até 1 dia corrido", price: 15.75 },
 ]
@@ -628,7 +629,11 @@ function AddressStep({
                   <span className="block text-sm font-semibold text-foreground">{f.label}</span>
                   <span className="block text-xs text-muted-foreground">{f.desc}</span>
                 </span>
-                <span className="text-sm font-bold text-foreground">{brl(f.price)}</span>
+                {f.price === 0 ? (
+                  <span className="text-sm font-bold text-green-600">Grátis</span>
+                ) : (
+                  <span className="text-sm font-bold text-foreground">{brl(f.price)}</span>
+                )}
               </button>
             )
           })}
